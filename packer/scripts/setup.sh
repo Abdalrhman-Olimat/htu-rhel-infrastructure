@@ -30,5 +30,6 @@ sudo sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
 # 5. Cleanup
 
 sudo dnf clean all
-rm -rf /var/cache/dnf
+# Remove residual cache to keep image small
+sudo rm -rf /var/cache/dnf
 
