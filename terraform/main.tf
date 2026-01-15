@@ -84,23 +84,6 @@ resource "aws_volume_attachment" "att_data" {
   instance_id = aws_instance.htu_server.id
 }
 
-# Volume C: Backup (20GB)
-resource "aws_ebs_volume" "backup_vol" {
-  availability_zone = aws_instance.htu_server.availability_zone
-  size              = 20
-  type              = "gp3"
-
-  tags = {
-    Name = "HTU-Backup-Disk"
-  }
-}
-
-# Attach Volume C
-resource "aws_volume_attachment" "att_backup" {
-  device_name = "/dev/sdg"
-  volume_id   = aws_ebs_volume.backup_vol.id
-  instance_id = aws_instance.htu_server.id
-}
 
 # 5. Cloud Storage (S3 Bucket)
 # We use random_id to ensure the bucket name is unique globally
