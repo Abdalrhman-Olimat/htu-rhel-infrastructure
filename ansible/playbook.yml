@@ -1,0 +1,161 @@
+---
+- name: HTU Infrastructure Configuration
+  hosts: all
+  become: yes
+  vars:
+    # Storage Configuration
+    data_disk_device: "/dev/xvdf" # Data volume (40GB attached as /dev/sdf)
+    vg_name: "vg_data"
+    lv_name: "lv_company"
+    mount_point: "/company"
+    
+    # Bucket Name (You must update this manually or pass via -e)
+    s3_bucket_name: "htu-backup-storage-b8793f04" 
+
+    # User List
+    users:
+      - { name: 'sara', group: 'hr' }
+      - { name: 'huda', group: 'hr' }
+      - { name: 'ahmed', group: 'finance' }
+      - { name: 'rami', group: 'finance' }
+      - { name: 'omar', group: 'engineering' }
+      - { name: 'ali', group: 'engineering' }
+      - { name: 'manager', group: 'management' }
+      - { name: 'admin1', group: 'wheel' } # wheel group gives sudo access
+      - { name: 'admin2', group: 'wheel' }
+
+  tasks:
+    # -------------------------------------------------------
+    # 1. Storage Configuration (LVM)
+    # -------------------------------------------------------
+    - name: Install LVM2 and Podman
+      dnf:
+        name: 
+          - lvm2
+          - podman
+          - httpd-tools
+          - firewalld
+          - python3-firewall
+        state: present
+
+    - name: Ensure firewalld is running
+      service:
+        name: firewalld
+        state: started
+        enabled: yes
+
+    - name: Create Volume Group (vg_data)
+      lvg:
+        vg: "{{ vg_name }}"
+        pvs: "{{ data_disk_device }}"
+        force: no # Won't overwrite if it exists
+
+    - name: Create Logical Volume (lv_company)
+      lvol:
+        vg: "{{ vg_name }}"
+        lv: "{{ lv_name }}"
+        size: "10g"
+
+    - name: Create XFS Filesystem
+      filesystem:
+        fstype: xfs
+        dev: "/dev/{{ vg_name }}/{{ lv_name }}"
+
+    - name: Mount /company directory
+      mount:
+        path: "{{ mount_point }}"
+        src: "/dev/{{ vg_name }}/{{ lv_name }}"
+        fstype: xfs
+        state: mounted
+
+    # -------------------------------------------------------
+    # 2. Directory Structure & Permissions
+    # -------------------------------------------------------
+    - name: Create Department Groups
+      group:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - hr
+        - finance
+        - engineering
+        - management
+        - it
+
+    - name: Create Department Directories
+      file:
+        path: "{{ mount_point }}/{{ item }}"
+        state: directory
+        owner: root
+        group: "{{ item }}"
+        mode: '3770' # 3=Sticky+SGID, 7=Owner(rwx), 7=Group(rwx), 0=Others(---)
+      loop:
+        - hr
+        - finance
+        - engineering
+        - management
+
+    # -------------------------------------------------------
+    # 3. User Management
+    # -------------------------------------------------------
+    - name: Create Users and Assign Groups
+      user:
+        name: "{{ item.name }}"
+        groups: "{{ item.group }}"
+        password: "{{ 'Htu@2024ChangeMe' | password_hash('sha512') }}"
+        update_password: on_create
+      loop: "{{ users }}"
+
+    - name: Copy 'user_creation_script.sh' script
+      copy:
+        src: files/user_creation_script.sh
+        dest: /usr/local/bin/htu_user_add
+        mode: '0755'
+
+    # -------------------------------------------------------
+    # 4. Web Application (Podman)
+    # -------------------------------------------------------
+    - name: Ensure Podman container exists
+      containers.podman.podman_container:
+        name: hr_placeholder
+        image: docker.io/library/httpd:latest
+        state: started
+        ports:
+          - "82:80" # Host Port 82 -> Container Port 80
+        generate_systemd:
+          path: /etc/systemd/system/
+          restart_policy: always
+
+    - name: Enable Firewall Port 82
+      firewalld:
+        port: 82/tcp
+        permanent: yes
+        state: enabled
+      notify: Reload Firewall
+
+    # -------------------------------------------------------
+    # 5. Backup Automation
+    # -------------------------------------------------------
+    - name: Copy 'backup_script.sh' script
+      copy:
+        src: files/backup_script.sh
+        dest: /usr/local/bin/backup_script.sh
+        mode: '0700' # Executable only by root
+
+    - name: Inject Bucket Name into Backup Script
+      replace:
+        path: /usr/local/bin/backup_script.sh
+        regexp: 'YOUR_BUCKET_NAME_HERE'
+        replace: "{{ s3_bucket_name }}"
+
+    - name: Schedule Daily Backup Cron Job
+      cron:
+        name: "Daily S3 Backup"
+        minute: "59"
+        hour: "23"
+        job: "/usr/local/bin/backup_script.sh >> /var/log/htu_backup.log 2>&1"
+  handlers:
+    - name: Reload Firewall
+      service:
+        name: firewalld
+        state: reloaded
