@@ -156,3 +156,21 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "backup_encryption
     }
   }
 }
+
+resource "aws_s3_bucket_lifecycle_configuration" "backup_lifecycle" {
+  bucket = aws_s3_bucket.htu_backup_bucket.id
+
+  rule {
+    id     = "archive-old-backups"
+    status = "Enabled"
+
+    transition {
+      days          = 30
+      storage_class = "GLACIER"
+    }
+
+    expiration {
+      days = 365
+    }
+  }
+}
