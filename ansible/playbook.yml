@@ -56,6 +56,20 @@
         state: started
         enabled: yes
 
+    - name: Install TuneD
+      dnf:
+        name: tuned
+        state: present
+
+    - name: Enable and start TuneD
+      service:
+        name: tuned
+        state: started
+        enabled: yes
+
+    - name: Set TuneD profile to virtual-guest
+      command: tuned-adm profile virtual-guest
+
     - name: Create Volume Group (vg_data)
       lvg:
         vg: "{{ vg_name }}"
