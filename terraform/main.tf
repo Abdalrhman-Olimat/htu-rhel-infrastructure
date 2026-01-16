@@ -40,12 +40,50 @@ resource "aws_security_group" "htu_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
+# IAM Role for EC2 to access S3
+resource "aws_iam_role" "htu_s3_role" {
+  name = "htu-server-s3-role"
+  
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "htu_s3_policy" {
+  name = "htu-s3-access"
+  role = aws_iam_role.htu_s3_role.id
+  
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:ListBucket",
+        "s3:DeleteObject"
+      ]
+      Resource = [
+        aws_s3_bucket.htu_backup_bucket.arn,
+        "${aws_s3_bucket.htu_backup_bucket.arn}/*"
+      ]
+    }]
+  })
+}
 
 # 3. The Server (EC2)
 resource "aws_instance" "htu_server" {
   ami           = data.aws_ami.htu_image.id
   instance_type = var.instance_type
   key_name      = var.key_name 
+  iam_instance_profile = aws_iam_instance_profile.htu_profile.name
 
   # Attach the Security Group
   vpc_security_group_ids = [aws_security_group.htu_sg.id]
