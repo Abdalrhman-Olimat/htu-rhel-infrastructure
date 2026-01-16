@@ -37,6 +37,17 @@
         path: /etc/hosts
         line: "127.0.0.1 htu-server.ceu.local htu-server"
 
+    - name: Harden SSH configuration
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }
+        - { regexp: '^#?PubkeyAuthentication', line: 'PubkeyAuthentication yes' }
+        - { regexp: '^#?AllowGroups', line: 'AllowGroups wheel it' }
+      notify: Restart sshd
+
     # -------------------------------------------------------
     # 1. Storage Configuration (LVM)
     # -------------------------------------------------------
@@ -228,3 +239,8 @@
       service:
         name: firewalld
         state: reloaded
+
+    - name: Restart sshd
+      service:
+        name: sshd
+        state: restarted
