@@ -110,6 +110,7 @@ resource "aws_ebs_volume" "data_vol" {
   size              = 40
   type              = "gp3"
 
+   encrypted = true # Enable encryption
   tags = {
     Name = "HTU-Data-Disk"
   }
@@ -130,7 +131,7 @@ resource "random_id" "bucket_suffix" {
 }
 
 resource "aws_s3_bucket" "htu_backup_bucket" {
-  bucket = "htu-backup-storage-${random_id.bucket_suffix.hex}"
+  bucket = "htu-backup-storage"
   force_destroy = true # Allows deleting bucket even if it has files (for testing)
 
   tags = {
@@ -143,5 +144,15 @@ resource "aws_s3_bucket_versioning" "versioning" {
   bucket = aws_s3_bucket.htu_backup_bucket.id
   versioning_configuration {
     status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "backup_encryption" {
+  bucket = aws_s3_bucket.htu_backup_bucket.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
   }
 }

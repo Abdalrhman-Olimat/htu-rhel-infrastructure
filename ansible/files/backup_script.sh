@@ -23,7 +23,7 @@ fi
 
 # 2. Upload to S3
 echo "Uploading to s3://$S3_BUCKET/..."
-/usr/local/bin/aws s3 cp "$BACKUP_DIR/$BACKUP_FILE" "s3://$S3_BUCKET/"
+aws s3 cp "$BACKUP_DIR/$BACKUP_FILE" "s3://$S3_BUCKET/"
 
 if [ $? -eq 0 ]; then
     echo "Upload Successful."

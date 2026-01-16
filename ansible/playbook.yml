@@ -10,7 +10,7 @@
     mount_point: "/company"
     
     # Bucket Name (You must update this manually or pass via -e)
-    s3_bucket_name: "htu-backup-storage-b8793f04" 
+    s3_bucket_name: "htu-backup-storage" 
 
     # User List
     users:

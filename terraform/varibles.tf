@@ -14,7 +14,7 @@ variable "key_name" {
 variable "my_ip" {
   description = "Your IP address for SSH access (CIDR format)"
   type        = string
-  default     = "0.0.0.0/0" # WARNING: Change this
+  default     = "34.204.107.88/32" # WARNING: Change this
 }
 #curl -s https://checkip.amazonaws.com
 # terraform apply -var="my_ip=$(curl -s https://checkip.amazonaws.com)/32"
