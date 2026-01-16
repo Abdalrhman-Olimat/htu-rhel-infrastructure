@@ -77,6 +77,10 @@ resource "aws_iam_role_policy" "htu_s3_policy" {
     }]
   })
 }
+resource "aws_iam_instance_profile" "htu_profile" {
+  name = "htu-ec2-instance-profile"
+  role = aws_iam_role.htu_s3_role.name
+}
 
 # 3. The Server (EC2)
 resource "aws_instance" "htu_server" {
