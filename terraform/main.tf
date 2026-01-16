@@ -135,7 +135,7 @@ resource "random_id" "bucket_suffix" {
 }
 
 resource "aws_s3_bucket" "htu_backup_bucket" {
-  bucket = "htu-backup-storage-${random_id.bucket_suffix.hex}"
+  bucket = "htu-backup-storage"
   force_destroy = true # Allows deleting bucket even if it has files (for testing)
 
   tags = {
