@@ -68,6 +68,49 @@
         fstype: xfs
         state: mounted
 
+    - name: Create Logical Volume for /home
+      lvol:
+        vg: "{{ vg_name }}"
+        lv: lv_home
+        size: "15g"
+
+    - name: Create Logical Volume for swap
+      lvol:
+        vg: "{{ vg_name }}"
+        lv: lv_swap
+        size: "2g"
+
+    - name: Create XFS Filesystem for /home
+      filesystem:
+        fstype: xfs
+        dev: "/dev/{{ vg_name }}/lv_home"
+
+    - name: Format swap
+      command: mkswap /dev/{{ vg_name }}/lv_swap
+
+    - name: Backup existing /home
+      command: rsync -av /home/ /home.bak/
+      args:
+        creates: /home.bak
+
+    - name: Mount new /home
+      mount:
+        path: /home
+        src: "/dev/{{ vg_name }}/lv_home"
+        fstype: xfs
+        state: mounted
+
+    - name: Enable swap
+      command: swapon /dev/{{ vg_name }}/lv_swap
+
+    - name: Add swap to fstab
+      mount:
+        path: none
+        src: "/dev/{{ vg_name }}/lv_swap"
+        fstype: swap
+        opts: sw
+        state: present
+
     # -------------------------------------------------------
     # 2. Directory Structure & Permissions
     # -------------------------------------------------------
