@@ -26,6 +26,18 @@
 
   tasks:
     # -------------------------------------------------------
+    # 0. System Configuration
+    # -------------------------------------------------------
+    - name: Set hostname
+      hostname:
+        name: htu-server.ceu.local
+
+    - name: Configure /etc/hosts
+      lineinfile:
+        path: /etc/hosts
+        line: "127.0.0.1 htu-server.ceu.local htu-server"
+
+    # -------------------------------------------------------
     # 1. Storage Configuration (LVM)
     # -------------------------------------------------------
     - name: Install LVM2 and Podman
