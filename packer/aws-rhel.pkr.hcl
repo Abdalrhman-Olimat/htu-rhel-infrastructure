@@ -7,6 +7,21 @@ packer {
   }
 }
 
+variable "aws_region" {
+  type    = string
+  default = "us-east-1"
+}
+
+variable "instance_type" {
+  type    = string
+  default = "t2.micro"
+}
+
+variable "ami_name" {
+  type    = string
+  default = "htu-rhel-v1"
+}
+
 source "amazon-ebs" "rhel" {
   ami_name      = "${var.ami_name}-{{timestamp}}" # Appends timestamp to avoid name collisions
   instance_type = var.instance_type
