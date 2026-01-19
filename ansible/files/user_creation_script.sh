@@ -5,7 +5,7 @@
 
 USERNAME=$1
 DEPARTMENT=$2
-DEFAULT_PASS="Htu@2024ChangeMe"
+DEFAULT_PASS="Htu@123"
 
 if [ -z "$USERNAME" ] || [ -z "$DEPARTMENT" ]; then
     echo "Usage: $0 [username] [department]"

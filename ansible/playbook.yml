@@ -209,7 +209,7 @@
       user:
         name: "{{ item.name }}"
         groups: "{{ item.group }}"
-        password: "{{ 'Htu@2024ChangeMe' | password_hash('sha512') }}"
+        password: "{{ 'Htu@123' | password_hash('sha512') }}"
         update_password: on_create
       loop: "{{ users }}"
 

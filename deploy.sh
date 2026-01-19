@@ -45,10 +45,7 @@ if [[ -z "$CLIENT_PEM" ]]; then
 	exit 1
 fi
 
-# If PEM path is relative (not starting with /), prepend ../
-if [[ "$CLIENT_PEM" != /* ]]; then
-  CLIENT_PEM="../$CLIENT_PEM"
-fi
+
 
 if [[ -z "$KEY_PAIR_NAME" ]]; then
 	KEY_PAIR_NAME="$(basename "$CLIENT_PEM" .pem)"
@@ -95,10 +92,39 @@ SERVER_IP="$(terraform output -raw server_public_ip)"
 S3_BUCKET_NAME="$(terraform output -raw s3_bucket_name)"
 popd >/dev/null
 
+# Store absolute path to PEM before changing directories
+if [[ "$CLIENT_PEM" != /* ]]; then
+  # Convert relative path to absolute
+  ABS_CLIENT_PEM="$(cd "$(dirname "$CLIENT_PEM")" && pwd)/$(basename "$CLIENT_PEM")"
+else
+  ABS_CLIENT_PEM="$CLIENT_PEM"
+fi
 
+# Wait for SSH to become available
+echo "Waiting for SSH service to be ready on $SERVER_IP..."
+MAX_RETRIES=30
+RETRY_COUNT=0
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+  if ssh -i "$ABS_CLIENT_PEM" -o StrictHostKeyChecking=no -o ConnectTimeout=5 -o BatchMode=yes ec2-user@"$SERVER_IP" exit 2>/dev/null; then
+    echo "SSH is ready!"
+    break
+  fi
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  echo "Attempt $RETRY_COUNT/$MAX_RETRIES: SSH not ready yet, waiting 10 seconds..."
+  sleep 10
+done
 
+if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+  echo "Error: SSH connection timed out after $MAX_RETRIES attempts"
+  exit 1
+fi
 
-# Refresh inventory.ini so it's always in sync with the freshly created instance
+# Refresh inventory.ini with the correct PEM path for Ansible
+# If PEM path is relative (not starting with /), prepend ../
+if [[ "$CLIENT_PEM" != /* ]]; then
+  CLIENT_PEM="../$CLIENT_PEM"
+fi
+
 cat > "$ANSIBLE_DIR/inventory.ini" <<EOF
 [htu_servers]
 $SERVER_IP ansible_user=ec2-user ansible_ssh_private_key_file=$CLIENT_PEM
@@ -106,6 +132,6 @@ EOF
 
 cd $ANSIBLE_DIR
 ansible-playbook playbook.yml -i inventory.ini -e "s3_bucket_name=$S3_BUCKET_NAME"
-# popd >/dev/null
+# # popd >/dev/null
 
 echo "Deployment complete."
