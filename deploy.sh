@@ -45,12 +45,11 @@ if [[ -z "$CLIENT_PEM" ]]; then
 	exit 1
 fi
 
-if [[ ! -f "$CLIENT_PEM" ]]; then
-	echo "Error: PEM file not found at: $CLIENT_PEM"
-	exit 1
+# If PEM path is relative (not starting with /), prepend ../
+if [[ "$CLIENT_PEM" != /* ]]; then
+  CLIENT_PEM="../$CLIENT_PEM"
 fi
 
-# Derive key pair name from PEM filename if not provided
 if [[ -z "$KEY_PAIR_NAME" ]]; then
 	KEY_PAIR_NAME="$(basename "$CLIENT_PEM" .pem)"
 fi
@@ -82,7 +81,7 @@ fi
 
 echo "Starting Packer build (region: $AWS_REGION)..."
 pushd "$PACKER_DIR" >/dev/null
-packer init .
+packer init aws-rhel.pkr.hcl
 packer build -var "aws_region=$AWS_REGION" -var "instance_type=t2.micro" -var "ami_name=htu-rhel-v1" aws-rhel.pkr.hcl
 popd >/dev/null
 
@@ -96,13 +95,17 @@ SERVER_IP="$(terraform output -raw server_public_ip)"
 S3_BUCKET_NAME="$(terraform output -raw s3_bucket_name)"
 popd >/dev/null
 
-echo "Running Ansible against $SERVER_IP with bucket $S3_BUCKET_NAME..."
-pushd "$ANSIBLE_DIR" >/dev/null
-ansible-playbook playbook.yml \
-	-i "$SERVER_IP," \
-	-u ec2-user \
-	--private-key "$CLIENT_PEM" \
-	-e "s3_bucket_name=$S3_BUCKET_NAME"
-popd >/dev/null
+
+
+
+# Refresh inventory.ini so it's always in sync with the freshly created instance
+cat > "$ANSIBLE_DIR/inventory.ini" <<EOF
+[htu_servers]
+$SERVER_IP ansible_user=ec2-user ansible_ssh_private_key_file=$CLIENT_PEM
+EOF
+
+cd $ANSIBLE_DIR
+ansible-playbook playbook.yml -i inventory.ini -e "s3_bucket_name=$S3_BUCKET_NAME"
+# popd >/dev/null
 
 echo "Deployment complete."
